@@ -15,6 +15,7 @@
 :root{
   --bg:#f7f6f3; --panel:#ffffff; --fg:#1c1a17; --muted:#6c665e; --line:#e2ded7;
   --accent:#8a6a2f; --c1:#3f6f8f; --c2:#c08a2e; --c3:#6b8f6a; --c4:#9a5f5f; --c5:#7a6a8f;
+  --c6:#4f8a86; --c7:#a8703f; --c8:#5d6f9a;
   --ok:#2e7d32; --bad:#b03a2e; --warn:#b8860b; --grid:#edeae4;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --serif:ui-serif,Georgia,"Times New Roman",serif;
@@ -24,12 +25,14 @@
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
   --bg:#17160f; --panel:#201e18; --fg:#ece8e0; --muted:#9c958a; --line:#332f27;
   --accent:#d9b872; --c1:#6fa3c4; --c2:#d9a84a; --c3:#8fb98d; --c4:#c48a8a; --c5:#a496bd;
+  --c6:#7fbfba; --c7:#d2a070; --c8:#8e9dd0;
   --ok:#7bc47f; --bad:#e8796b; --warn:#d9b24a; --grid:#282419;
   color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#17160f; --panel:#201e18; --fg:#ece8e0; --muted:#9c958a; --line:#332f27;
   --accent:#d9b872; --c1:#6fa3c4; --c2:#d9a84a; --c3:#8fb98d; --c4:#c48a8a; --c5:#a496bd;
+  --c6:#7fbfba; --c7:#d2a070; --c8:#8e9dd0;
   --ok:#7bc47f; --bad:#e8796b; --warn:#d9b24a; --grid:#282419;
   color-scheme:dark;
 }
@@ -475,8 +478,13 @@ function num(v){
   return isFinite(n) ? n : 0;
 }
 function pct(u,v){ return v ? u/v : 0; }
-function nome(cod){ return NOMI[cod] || cod; }
+/* I nomi per esteso arrivano dalla scheda specie del foglio: così una specie
+   nuova compare col suo nome anche fra i movimenti, che il nome non lo portano. */
+var IMPARATI = {};
+function nome(cod){ return IMPARATI[cod] || NOMI[cod] || cod; }
 function corto(cod){ return CORTI[cod] || NOMI[cod] || cod; }
+// Codice e nome insieme: il codice è quello che usano sul foglio.
+function etichetta(cod){ var n = nome(cod); return n !== cod ? cod + " \u00B7 " + n : cod; }
 
 // Lunedì della settimana ISO indicata.
 function lunedi(sett){
@@ -556,7 +564,7 @@ function percorso(punti){
 }
 function colonna(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function coloreIndice(i){
-  var c = ["--c1","--c2","--c3","--c4","--c5"];
+  var c = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8"];
   return colonna(c[i % c.length]);
 }
 function largTesto(svg, valori, fmt){
@@ -755,7 +763,7 @@ function tabellaPrezzi(){
     var suggerito = oltre ? ripiego : obiettivo;
     var sotto = pareggio > 0 && suggerito < pareggio;
     var tr = document.createElement("tr");
-    td(tr, nome(e.prodotto));
+    td(tr, etichetta(e.prodotto));
     td(tr, fKg.format(e.kg) + " kg");
     td(tr, fEur.format(e.importo));
     td(tr, fEur.format(costo) + "/kg");
@@ -825,7 +833,7 @@ function disegnaSettimana(){
   tipi.forEach(function(p){
     var e = q("Esistenze",p), a = q("Acquisto",p), v = q("Vendita",p);
     var tr = document.createElement("tr");
-    td(tr, nome(p));
+    td(tr, etichetta(p));
     td(tr, fKg.format(e.kg) + " kg");
     td(tr, fKg.format(a.kg) + " kg");
     td(tr, fKg.format(v.kg) + " kg");
@@ -858,7 +866,7 @@ function disegnaSettimana(){
       var g = voci.filter(function(m){ return m.controparte === cp && m.prodotto === pr; });
       var k = somma(g,"kg"), i = somma(g,"importo");
       var tr = document.createElement("tr");
-      td(tr, cp || "—"); td(tr, nome(pr)); td(tr, String(g.length));
+      td(tr, cp || "—"); td(tr, etichetta(pr)); td(tr, String(g.length));
       td(tr, fKg.format(k) + " kg"); td(tr, fEur.format(i));
       td(tr, k ? fEur.format(i/k) + "/kg" : "—");
       e.appendChild(tr);
@@ -904,7 +912,7 @@ function graficoSettimana(tipi, q){
   var y = scalaLineare(0, maxY * 1.08, ih, 0);
   var g = sv("g", {transform:"translate(" + m.l + "," + m.t + ")"}, t.svg);
   assi(g, {tacche:tk, y:y, x:x, iw:iw, ih:ih, banda:x.banda(), fmtY:fK.format,
-           fmtX:corto, valoriX:tipi});
+           fmtX:function(p){ return p; }, valoriX:tipi});
 
   var cA = colonna("--c1"), cV = colonna("--c2");
   tipi.forEach(function(p){
@@ -916,7 +924,7 @@ function graficoSettimana(tipi, q){
     function mostra(ev){
       var e = q("Esistenze",p), ac = q("Acquisto",p), ve = q("Vendita",p);
       var pt = posizione(ev, box);
-      tipW.mostra(pt[0], pt[1], nome(p), [
+      tipW.mostra(pt[0], pt[1], etichetta(p), [
         {colore:cA, testo:"Acquisti " + fEur.format(ac.eur) + " · " + fKg.format(ac.kg) + " kg"},
         {colore:cV, testo:"Vendite " + fEur.format(ve.eur) + " · " + fKg.format(ve.kg) + " kg"},
         {testo:"Giacenza " + fKg.format(e.kg + ac.kg - ve.kg) + " kg"}
@@ -1624,6 +1632,10 @@ function carica(primo){
       });
       if (!tot.length) throw new Error("ho letto " + m.length + " righe ma nessuna è utilizzabile. Di solito vuol dire che è stata pubblicata una scheda diversa da « " + SCHEDA + " »: nella finestra «Pubblica sul web» il primo menu deve indicare quella scheda, non «Intero documento»");
 
+      IMPARATI = {};
+      tot.forEach(function(r){
+        if (r.nome && r.nome !== r.specie) IMPARATI[r.specie] = r.nome;
+      });
       RIGHE = tot; MOVI = mov;
       el("errore").hidden = true;
       segnale("", "Aggiornato alle " + fOra.format(new Date()));

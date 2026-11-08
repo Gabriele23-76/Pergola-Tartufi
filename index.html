@@ -1,4 +1,11 @@
 <!doctype html>
+<!--
+  Cruscotto Pergola Tartufi — versione 1.0 — 8 novembre 2026
+  Versione approvata e funzionante. Non modificare a mano.
+  Legge la scheda "piatto" del foglio di stagione pubblicata in formato csv:
+  colonne A:L i totali, colonne N:V i movimenti. Se quelle colonne vengono
+  spostate o le formule in A2 e N1 sovrascritte, la pagina smette di leggere.
+-->
 <html lang="it">
 <head>
 <meta charset="utf-8">
@@ -116,6 +123,7 @@ tbody tr.tot td{font-weight:600;border-top:1px solid var(--muted)}
 .avviso{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:var(--r);padding:15px;font-size:.8rem;color:var(--muted);max-width:76ch;margin-bottom:20px}
 .avviso b{color:var(--fg);font-weight:600}
 footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
+.versione{color:var(--muted);font-size:.72rem;opacity:.7;margin:30px 0 10px}
 
 .tip{position:absolute;z-index:6;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.16);padding:7px 10px;font-size:.76rem;font-variant-numeric:tabular-nums}
 .tip .h{color:var(--muted);margin-bottom:3px}
@@ -389,6 +397,8 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
 
     <footer id="b-foot">—</footer>
   </section>
+
+  <p class="versione">Cruscotto Pergola Tartufi · versione 1.0 · 8 novembre 2026</p>
 
 </div>
 <script>

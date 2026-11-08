@@ -200,7 +200,7 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
         <p class="nota">Acquisti della settimana per fornitore.</p>
         <div class="scroll">
           <table>
-            <thead><tr><th>Fornitore</th><th>Righe</th><th>Kg</th><th>Importo</th><th>Prezzo medio</th></tr></thead>
+            <thead><tr><th>Fornitore</th><th>Tipologia</th><th>Righe</th><th>Kg</th><th>Importo</th><th>Prezzo medio</th></tr></thead>
             <tbody id="w-forn"></tbody>
           </table>
         </div>
@@ -210,7 +210,7 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
         <p class="nota">Vendite della settimana per cliente.</p>
         <div class="scroll">
           <table>
-            <thead><tr><th>Cliente</th><th>Righe</th><th>Kg</th><th>Importo</th><th>Prezzo medio</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>Tipologia</th><th>Righe</th><th>Kg</th><th>Importo</th><th>Prezzo medio</th></tr></thead>
             <tbody id="w-cli"></tbody>
           </table>
         </div>
@@ -838,24 +838,37 @@ function disegnaSettimana(){
   b.appendChild(tr);
 
   // controparti
+  // Una riga per ogni accoppiata controparte e tipologia di tartufo.
   function controparti(dest, voci, et){
     var e = el(dest); e.replaceChildren();
-    var nomi = [];
-    voci.forEach(function(m){ if (nomi.indexOf(m.controparte) < 0) nomi.push(m.controparte); });
-    nomi.sort();
-    nomi.forEach(function(n){
-      var g = voci.filter(function(m){ return m.controparte === n; });
+    if (!voci.length){
+      var vu = document.createElement("tr");
+      var c = document.createElement("td"); c.colSpan = 6; c.style.color = "var(--muted)";
+      c.textContent = et; vu.appendChild(c); e.appendChild(vu);
+      return;
+    }
+    var chiavi = [];
+    voci.forEach(function(m){
+      var ch = m.controparte + "\u0000" + m.prodotto;
+      if (chiavi.indexOf(ch) < 0) chiavi.push(ch);
+    });
+    chiavi.sort();
+    chiavi.forEach(function(ch){
+      var parti = ch.split("\u0000"), cp = parti[0], pr = parti[1];
+      var g = voci.filter(function(m){ return m.controparte === cp && m.prodotto === pr; });
       var k = somma(g,"kg"), i = somma(g,"importo");
       var tr = document.createElement("tr");
-      td(tr, n || "—"); td(tr, String(g.length)); td(tr, fKg.format(k) + " kg");
-      td(tr, fEur.format(i)); td(tr, k ? fEur.format(i/k) + "/kg" : "—");
+      td(tr, cp || "—"); td(tr, nome(pr)); td(tr, String(g.length));
+      td(tr, fKg.format(k) + " kg"); td(tr, fEur.format(i));
+      td(tr, k ? fEur.format(i/k) + "/kg" : "—");
       e.appendChild(tr);
     });
-    if (!nomi.length){
-      var vu = document.createElement("tr");
-      var c = document.createElement("td"); c.colSpan = 5; c.style.color = "var(--muted)";
-      c.textContent = et; vu.appendChild(c); e.appendChild(vu);
-    }
+    var tk = somma(voci,"kg"), ti = somma(voci,"importo");
+    var tr = document.createElement("tr"); tr.className = "tot";
+    td(tr, "Totale"); td(tr, ""); td(tr, String(voci.length));
+    td(tr, fKg.format(tk) + " kg"); td(tr, fEur.format(ti));
+    td(tr, tk ? fEur.format(ti/tk) + "/kg" : "—");
+    e.appendChild(tr);
   }
   controparti("w-forn", acq, "Nessun acquisto registrato in questa settimana.");
   controparti("w-cli", ven, "Nessuna vendita ancora registrata: entrano a fine settimana.");

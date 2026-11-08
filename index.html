@@ -161,6 +161,7 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
       <div class="tile"><span class="k">Venduto</span><span class="v" id="w-tv">—</span><span class="n" id="w-tvn"></span></div>
       <div class="tile"><span class="k">Esistenze iniziali</span><span class="v" id="w-te">—</span><span class="n" id="w-ten"></span></div>
       <div class="tile"><span class="k">Giacenza teorica</span><span class="v" id="w-tg">—</span><span class="n" id="w-tgn"></span></div>
+      <div class="tile"><span class="k">Costo della struttura</span><span class="v" id="w-ts">—</span><span class="n" id="w-tsn"></span></div>
     </div>
 
     <div class="griglia">
@@ -179,6 +180,17 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
             <tbody id="w-tab"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Esistenze in cella e prezzo da fare</h2>
+      <p class="nota" id="w-nprezzi">—</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Specie</th><th>Kg</th><th>Valore</th><th>Costo medio</th><th>Prezzo di pareggio</th><th>Prezzo di budget</th><th>Massimo spuntato</th><th>Prezzo suggerito</th><th>Regola</th></tr></thead>
+          <tbody id="w-prezzi"></tbody>
+        </table>
       </div>
     </div>
 
@@ -341,6 +353,17 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
       </div>
     </div>
 
+    <div class="card">
+      <h2>Il costo della struttura</h2>
+      <p class="nota" id="b-nstrut">—</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th></th><th>Importo</th><th>Al mese</th></tr></thead>
+          <tbody id="b-strut"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="griglia">
       <div class="card">
         <h2>Andamentale del fatturato</h2>
@@ -394,6 +417,19 @@ var BASE = { ricaviTotali:2657052, ricaviFresco:2158647,
              venditeMerce:2606115, margineMerce:170559, fissi:359449,
              settimana:39 };
 
+/* Regola del prezzo suggerito: il prezzo obiettivo si ricava da quanto margine
+   serve per arrivare al budget; se supera di oltre il 30 per cento il massimo
+   spuntato in stagione si ripiega su un ricarico del 30 per cento sul costo. */
+var PREZZI = { sopraMax: 0.30, ricarico: 0.30 };
+
+/* Costo della struttura. I costi fissi dei primi nove mesi vengono dal conto
+   economico; gli spostamenti sono tenuti a parte perché nel trimestre della
+   stagione corrono molto più che nel resto dell'anno, e si calcolano dai
+   chilometri previsti invece che per quota. */
+var STRUTTURA = { fissi9m: 359449, spostamenti9m: 62651.58,
+                  kmMesePersona: 5000, persone: 4, euroKm: 0.55,
+                  risultatoPiano: 130000 };
+
 var NOMI = { BPFR:"Bianco pregiato", NUFR:"Nero uncinato", MEFR:"Mesenterico",
              BPCG:"Bianco pregiato congelato", NECG:"Nero congelato",
              NPCG:"Nero pregiato congelato", BTCG:"Bianchetto congelato",
@@ -420,6 +456,7 @@ var fEur = new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR",maximu
 var fPct = new Intl.NumberFormat("it-IT",{style:"percent",maximumFractionDigits:1});
 var fKg  = new Intl.NumberFormat("it-IT",{maximumFractionDigits:1,useGrouping:true});
 var fNum = new Intl.NumberFormat("it-IT",{maximumFractionDigits:1});
+var fCent= new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2});
 var fK   = new Intl.NumberFormat("it-IT",{notation:"compact",maximumFractionDigits:0});
 var fK1  = new Intl.NumberFormat("it-IT",{notation:"compact",maximumFractionDigits:2});
 var fOra = new Intl.DateTimeFormat("it-IT",{hour:"2-digit",minute:"2-digit"});
@@ -656,6 +693,81 @@ function movSett(){
 function perVerso(v){ return movSett().filter(function(m){ return m.verso === v; }); }
 function somma(a, c){ var s = 0; a.forEach(function(x){ s += x[c]; }); return s; }
 
+function spostamentiMese(){ return STRUTTURA.kmMesePersona * STRUTTURA.persone * STRUTTURA.euroKm; }
+function strutturaMese(){ return (STRUTTURA.fissi9m - STRUTTURA.spostamenti9m) / 9 + spostamentiMese(); }
+function strutturaSettimana(){ return strutturaMese() * 3 / BUD.settimaneQ4; }
+function fissiAnno(){ return STRUTTURA.fissi9m + strutturaMese() * 3; }
+
+// Margine che serve sul fatturato ancora da fare: una soglia per andare in
+// pareggio, una per arrivare al risultato operativo di piano.
+function margini(){
+  var q = srl();
+  var stagV = q.length ? q[q.length-1].prog_vendite : 0;
+  var stagM = q.length ? q[q.length-1].prog_margine : 0;
+  var fatto = BASE.margineMerce + stagM;
+  var resta = BUD.totale - (BASE.ricaviTotali + stagV);
+  var f = fissiAnno();
+  return { fatto: fatto, resta: resta, fissi: f,
+           pareggio: resta > 0 ? (f - fatto) / resta : 0,
+           budget:   resta > 0 ? (f + STRUTTURA.risultatoPiano - fatto) / resta : 0 };
+}
+
+// Prezzo di vendita più alto effettivamente spuntato in stagione per quella specie.
+function massimoSpuntato(prod){
+  var m = 0;
+  MOVI.forEach(function(v){
+    if (v.verso === "Vendita" && v.prodotto === prod && v.kg > 0){
+      var p = v.prezzo > 0 ? v.prezzo : v.importo / v.kg;
+      if (p > m) m = p;
+    }
+  });
+  return m;
+}
+
+function tabellaPrezzi(){
+  var b = el("w-prezzi"); b.replaceChildren();
+  var m = margini();
+  testo("w-nprezzi",
+    "Il costo medio è il valore delle esistenze diviso i chili. Sul fatturato che resta da fare "
+    + "serve il " + fPct.format(m.pareggio) + " di margine per andare in pareggio e il "
+    + fPct.format(m.budget) + " per arrivare al risultato di piano: da lì escono i due prezzi. "
+    + "Il suggerito punta al budget, ma se supera di oltre il " + fPct.format(PREZZI.sopraMax)
+    + " il massimo spuntato in stagione ripiega su un ricarico del " + fPct.format(PREZZI.ricarico) + " sul costo.");
+
+  var esi = perVerso("Esistenze").filter(function(e){ return e.kg > 0; });
+  if (!esi.length){
+    var tr0 = document.createElement("tr");
+    var c = document.createElement("td");
+    c.colSpan = 9; c.style.color = "var(--muted)";
+    c.textContent = "Nessuna esistenza iniziale registrata in questa settimana.";
+    tr0.appendChild(c); b.appendChild(tr0);
+    return;
+  }
+  function daMargine(costo, q){ return (q > 0 && q < 0.95) ? costo / (1 - q) : 0; }
+  esi.sort(function(x,y){ return y.importo - x.importo; });
+  esi.forEach(function(e){
+    var costo = e.kg ? e.importo / e.kg : 0;
+    var pareggio = daMargine(costo, m.pareggio);
+    var obiettivo = daMargine(costo, m.budget);
+    var max = massimoSpuntato(e.prodotto);
+    var ripiego = costo * (1 + PREZZI.ricarico);
+    var oltre = obiettivo <= 0 || (max > 0 && obiettivo > max * (1 + PREZZI.sopraMax));
+    var suggerito = oltre ? ripiego : obiettivo;
+    var sotto = pareggio > 0 && suggerito < pareggio;
+    var tr = document.createElement("tr");
+    td(tr, nome(e.prodotto));
+    td(tr, fKg.format(e.kg) + " kg");
+    td(tr, fEur.format(e.importo));
+    td(tr, fEur.format(costo) + "/kg");
+    td(tr, pareggio > 0 ? fEur.format(pareggio) + "/kg" : "—", "var(--warn)");
+    td(tr, obiettivo > 0 ? fEur.format(obiettivo) + "/kg" : "—");
+    td(tr, max > 0 ? fEur.format(max) + "/kg" : "—");
+    td(tr, fEur.format(suggerito) + "/kg", sotto ? "var(--bad)" : "var(--ok)");
+    td(tr, sotto ? "sotto il pareggio" : (oltre ? "ricarico sul costo" : "obiettivo di budget"));
+    b.appendChild(tr);
+  });
+}
+
 function disegnaSettimana(){
   var sm = settimaneMov();
   if (!sm.length){
@@ -664,6 +776,8 @@ function disegnaSettimana(){
     ["w-ta","w-tv","w-te","w-tg"].forEach(function(i){ testo(i, "—"); });
     ["w-tan","w-tvn","w-ten","w-tgn"].forEach(function(i){ testo(i, ""); });
     el("w-tab").replaceChildren(); el("w-forn").replaceChildren(); el("w-cli").replaceChildren();
+    el("w-prezzi").replaceChildren(); testo("w-nprezzi", "");
+    testo("w-ts", "—"); testo("w-tsn", "");
     nessunDato(el("w-chart"), "Manca il blocco dei movimenti nella scheda pubblicata");
     el("w-avviso").replaceChildren(document.createTextNode(
       "La scheda pubblicata contiene solo i totali di stagione. Per vedere la settimana in corso serve il blocco dei movimenti nelle colonne da N in poi della stessa scheda: una formula da incollare una volta sola, poi si aggiorna da sé."));
@@ -698,6 +812,8 @@ function disegnaSettimana(){
   testo("w-ten", fKg.format(ke) + " kg avanzati dalla settimana prima");
   testo("w-tg", fKg.format(ke + ka - kv) + " kg");
   testo("w-tgn", "esistenze più acquisti meno vendite");
+  testo("w-ts", fEur.format(strutturaSettimana()));
+  testo("w-tsn", "a settimana in questo trimestre, spostamenti compresi");
 
   // tabella per tipologia
   var tipi = [];
@@ -755,6 +871,7 @@ function disegnaSettimana(){
       : "")
     + "Le righe delle esistenze sono la giacenza avanzata dalla settimana precedente e non sono un acquisto."));
 
+  tabellaPrezzi();
   graficoSettimana(tipi, q);
 }
 
@@ -1286,14 +1403,18 @@ function disegnaBudget(){
   var av = el("b-avviso"); av.replaceChildren();
   var f1 = document.createElement("b"); f1.textContent = "Il punto che conta. ";
   av.appendChild(f1);
-  var pareggioReale = margPct > 0 ? BUD.fissi / margPct : 0;
+  var mm = margini();
+  var pareggioReale = margPct > 0 ? mm.fissi / margPct : 0;
   av.appendChild(document.createTextNode(
     "Il fatturato corre bene: siete al " + fPct.format(pct(u.totale, BUD.totale))
-    + " del budget. È il margine a non seguire. Al " + fPct.format(BUD.margine)
-    + " di piano il pareggio starebbe a " + fEur.format(pareggioPiano)
+    + " del budget. È il margine a non seguire. Con i costi fissi proiettati a "
+    + fEur.format(mm.fissi) + ", al " + fPct.format(BUD.margine)
+    + " di piano il pareggio starebbe a " + fEur.format(mm.fissi / BUD.margine)
     + "; al " + fPct.format(margPct) + " effettivo servirebbero "
     + (pareggioReale > 0 ? fEur.format(pareggioReale) : "—")
-    + " di fatturato per chiudere in pari. Ogni punto di margine recuperato sposta il pareggio di oltre 200.000 euro: è la leva, non il volume."));
+    + " di fatturato per chiudere in pari. Sul fatturato che resta da fare serve il "
+    + fPct.format(mm.pareggio) + " per il pareggio e il " + fPct.format(mm.budget)
+    + " per il risultato di piano: è lì che si decide l'anno, non sul volume."));
 
   var ft = el("b-foot"); ft.replaceChildren();
   ft.appendChild(document.createTextNode(
@@ -1304,7 +1425,49 @@ function disegnaBudget(){
     + "la curva si può sostituire. La stagione copre il solo tartufo fresco, quindi il progressivo complessivo non comprende "
     + "congelato e trasformati venduti nell'ultimo trimestre."));
 
+  tabellaStruttura();
   graficoBudget(p, obQ4);
+}
+
+function tabellaStruttura(){
+  var m = margini();
+  var nonStag = STRUTTURA.fissi9m - STRUTTURA.spostamenti9m;
+  var km = STRUTTURA.kmMesePersona * STRUTTURA.persone;
+  testo("b-nstrut",
+    "I costi fissi dei primi nove mesi valgono " + fEur.format(STRUTTURA.fissi9m)
+    + ", di cui " + fEur.format(STRUTTURA.spostamenti9m) + " di spostamenti. Nel trimestre della stagione "
+    + "gli spostamenti non seguono la media dell'anno, quindi sono calcolati sui chilometri previsti: "
+    + fNum.format(km) + " km al mese a " + fCent.format(STRUTTURA.euroKm) + " al chilometro.");
+
+  var b = el("b-strut"); b.replaceChildren();
+  function riga(et, importo, mese, grassetto, col){
+    var tr = document.createElement("tr");
+    if (grassetto) tr.className = "tot";
+    td(tr, et);
+    td(tr, importo === null ? "—" : fEur.format(importo), col);
+    td(tr, mese === null ? "—" : fEur.format(mese), col);
+    b.appendChild(tr);
+  }
+  riga("Costi fissi non stagionali, nove mesi", nonStag, nonStag / 9, false);
+  riga("Spostamenti nei nove mesi", STRUTTURA.spostamenti9m, STRUTTURA.spostamenti9m / 9, false);
+  riga("Spostamenti previsti nel trimestre", spostamentiMese() * 3, spostamentiMese(), false);
+  riga("Struttura nel trimestre", strutturaMese() * 3, strutturaMese(), true);
+  riga("A settimana", null, null, false);
+  b.lastChild.cells[1].textContent = fEur.format(strutturaSettimana());
+  b.lastChild.cells[2].textContent = "";
+  riga("Costi fissi dell'anno, proiettati", m.fissi, null, true);
+  b.lastChild.cells[2].textContent = "budget " + fEur.format(BUD.fissi);
+
+  var tr = document.createElement("tr");
+  td(tr, "Margine che serve per il pareggio");
+  td(tr, fPct.format(m.pareggio), "var(--warn)");
+  td(tr, "su " + fEur.format(m.resta) + " da fare");
+  b.appendChild(tr);
+  var tr2 = document.createElement("tr");
+  td(tr2, "Margine che serve per il risultato di piano");
+  td(tr2, fPct.format(m.budget), "var(--bad)");
+  td(tr2, "risultato " + fEur.format(STRUTTURA.risultatoPiano));
+  b.appendChild(tr2);
 }
 
 function graficoBudget(p, obQ4){

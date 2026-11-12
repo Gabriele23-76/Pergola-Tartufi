@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Cruscotto Pergola Tartufi — versione 1.1 — 12 novembre 2026
+  Cruscotto Pergola Tartufi — versione 1.2 — 12 novembre 2026
   Versione approvata e funzionante. Non modificare a mano.
   Legge la scheda "piatto" del foglio di stagione pubblicata in formato csv:
   colonne A:L i totali, colonne N:V i movimenti, colonne X:AK il congelato,
@@ -202,7 +202,7 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
       <p class="nota" id="w-ncali">—</p>
       <div class="scroll">
         <table>
-          <thead><tr><th>Specie</th><th>Congelato</th><th>Prezzo di congelamento</th><th>Costo del fresco</th><th>Minor valore</th><th>Calo peso</th><th>% sul disponibile</th><th>Costo del calo</th></tr></thead>
+          <thead><tr><th>Specie</th><th>Congelato</th><th>Prezzo di congelamento</th><th>Valore di congelamento</th><th>Costo del fresco</th><th>Minor valore</th><th>Calo peso</th><th>% sul disponibile</th><th>Costo del calo</th></tr></thead>
           <tbody id="w-cali"></tbody>
         </table>
       </div>
@@ -284,8 +284,19 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
       <p class="nota" id="s-ncali">—</p>
       <div class="scroll">
         <table>
-          <thead><tr><th>Specie</th><th>Disponibile</th><th>Calo peso</th><th>% di calo</th><th>Costo del calo</th><th>Congelato</th><th>% congelata</th><th>Minor valore</th><th>Peso sul margine</th></tr></thead>
+          <thead><tr><th>Specie</th><th>Disponibile</th><th>Calo peso</th><th>% di calo</th><th>Costo del calo</th><th>Congelato</th><th>% congelata</th><th>Valore di congelamento</th><th>Costo del fresco</th><th>Minor valore</th><th>Peso sul margine</th></tr></thead>
           <tbody id="s-cali"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Il congelato, che fine fa</h2>
+      <p class="nota" id="s-ncong">—</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Specie</th><th>Entrato</th><th>Valore di carico</th><th>Costo al kg</th><th>Venduto</th><th>Incasso</th><th>Prezzo realizzato</th><th>Margine</th><th>Ancora in giacenza</th></tr></thead>
+          <tbody id="s-cong"></tbody>
         </table>
       </div>
     </div>
@@ -425,7 +436,7 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
     <footer id="b-foot">—</footer>
   </section>
 
-  <p class="versione">Cruscotto Pergola Tartufi · versione 1.1 · 12 novembre 2026</p>
+  <p class="versione">Cruscotto Pergola Tartufi · versione 1.2 · 12 novembre 2026</p>
 
 </div>
 <script>
@@ -779,6 +790,25 @@ function tassoCalo(p){
   var t = perso / disp;
   return (t > 0 && t < 0.3) ? t : 0;
 }
+// Somma una grandezza per specie e la restituisce dalla più grande alla più
+// piccola, così i riquadri possono dire subito su quali tartufi pesa.
+function perSpecie(righe, campo){
+  var m = {};
+  righe.forEach(function(c){
+    if (c.specie === "TOT") return;
+    var v = campo(c);
+    if (v > 0) m[c.specie] = (m[c.specie] || 0) + v;
+  });
+  return Object.keys(m).map(function(k){ return { cod:k, val:m[k] }; })
+                       .sort(function(a,b){ return b.val - a.val; });
+}
+function elencoKg(v, quanti){
+  if (!v.length) return "";
+  var n = quanti || 3;
+  var s = v.slice(0, n).map(function(x){ return x.cod + " " + fKg.format(x.val) + " kg"; }).join(" · ");
+  return v.length > n ? s + " e altre " + (v.length - n) : s;
+}
+
 // Quanto valgono, in euro, i due fenomeni su un insieme di righe.
 function pesoCali(righe){
   var r = { kgCong:0, kgCalo:0, minorValore:0, costoCalo:0, valCong:0 };
@@ -885,7 +915,7 @@ function tabellaCali(cs, chiusa){
     testo("w-ncali", "Il blocco del congelato e del calo peso non è ancora collegato alla scheda pubblicata.");
     var v0 = document.createElement("tr");
     var c0 = document.createElement("td");
-    c0.colSpan = 8; c0.style.color = "var(--muted)";
+    c0.colSpan = 9; c0.style.color = "var(--muted)";
     c0.textContent = "Serve il blocco nelle colonne da X in poi della scheda pubblicata: una formula da incollare una volta sola.";
     v0.appendChild(c0); b.appendChild(v0);
     return;
@@ -902,7 +932,7 @@ function tabellaCali(cs, chiusa){
   if (!righe.length){
     var v1 = document.createElement("tr");
     var c1 = document.createElement("td");
-    c1.colSpan = 8; c1.style.color = "var(--muted)";
+    c1.colSpan = 9; c1.style.color = "var(--muted)";
     c1.textContent = chiusa ? "In questa settimana non è stato congelato nulla e non c'è stato calo peso."
                             : "Nessun congelamento registrato finora in questa settimana.";
     v1.appendChild(c1); b.appendChild(v1);
@@ -918,6 +948,7 @@ function tabellaCali(cs, chiusa){
     td(tr, etichetta(c.specie));
     td(tr, cg > 0 ? fKg.format(cg) + " kg" : "—");
     td(tr, cg > 0 ? fEur.format(c.gu) + "/kg" : "—");
+    td(tr, cg > 0 ? fEur.format(Math.abs(c.gt)) : "—");
     td(tr, um > 0 ? fEur.format(um) + "/kg" : "—");
     td(tr, minore >= 1 ? "−" + fEur.format(minore) : "—", minore >= 1 ? "var(--warn)" : null);
     td(tr, cp > 0 ? fKg.format(cp) + " kg" : (chiusa ? "—" : "da rilevare"));
@@ -930,8 +961,9 @@ function tabellaCali(cs, chiusa){
   }));
   var tr = document.createElement("tr"); tr.className = "tot";
   td(tr, "Totale");
-  td(tr, fKg.format(p.kgCong) + " kg"); td(tr, ""); td(tr, "");
-  td(tr, p.minorValore > 0 ? "−" + fEur.format(p.minorValore) : "—");
+  td(tr, fKg.format(p.kgCong) + " kg"); td(tr, "");
+  td(tr, p.kgCong > 0 ? fEur.format(p.valCong) : "—"); td(tr, "");
+  td(tr, p.minorValore >= 1 ? "−" + fEur.format(p.minorValore) : "—");
   td(tr, chiusa ? fKg.format(p.kgCalo) + " kg" : "da rilevare");
   td(tr, "");
   td(tr, p.costoCalo > 0 ? "−" + fEur.format(p.costoCalo) : "—");
@@ -996,11 +1028,15 @@ function disegnaSettimana(){
     testo("w-tg", fKg.format(ke + ka - kv) + " kg");
     testo("w-tgn", "esistenze più acquisti meno vendite");
   } else {
+    var spCong = perSpecie(cs, function(c){ return Math.abs(c.gk); });
+    var spCalo = perSpecie(cs, function(c){ return chiusa ? c.pk : 0; });
     testo("w-tc", fKg.format(kCong) + " kg");
-    testo("w-tcn", kCong > 0 ? fEur.format(pc.valCong) + " al prezzo di congelamento" : "niente congelato");
+    testo("w-tcn", kCong > 0
+      ? elencoKg(spCong) + " · " + fEur.format(pc.valCong) + " al prezzo di congelamento"
+      : "niente congelato");
     testo("w-tk", chiusa ? fKg.format(kCalo) + " kg" : "—");
     testo("w-tkn", chiusa
-      ? (kCalo > 0 ? "costano " + fEur.format(pc.costoCalo) : "nessun calo registrato")
+      ? (kCalo > 0 ? elencoKg(spCalo) + " · costano " + fEur.format(pc.costoCalo) : "nessun calo registrato")
       : "si determina a settimana chiusa");
     testo("w-tg", fKg.format(kRim) + " kg");
     testo("w-tgn", chiusa ? "quello che resta davvero in cella" : "al netto del congelato, calo ancora da rilevare");
@@ -1174,10 +1210,71 @@ function disegnaStagione(){
   });
 
   caliStagione(u);
+  congelatoVenduto();
   schedeSpecie();
   tabellaStagione();
   graficoVendite();
   graficoMargine();
+}
+
+/* Il congelato una volta messo via: quanto ne è entrato, a che prezzo è
+   uscito dal banco e quanto ne resta. Le sigle del congelato finiscono per CG.
+   Il foglio non tiene il legame fra il fresco congelato e la sigla in cui
+   finisce, quindi qui si leggono i movimenti delle sigle del congelato, non
+   la provenienza. */
+function congelatoVenduto(){
+  var b = el("s-cong"); b.replaceChildren();
+  var frigo = MOVI.filter(function(m){ return /CG$/.test(m.prodotto); });
+  if (!frigo.length){
+    testo("s-ncong", "Nel foglio dei movimenti non risultano ancora righe sulle sigle del congelato.");
+    var v = document.createElement("tr"), c = document.createElement("td");
+    c.colSpan = 9; c.style.color = "var(--muted)";
+    c.textContent = "Niente da mostrare per ora.";
+    v.appendChild(c); b.appendChild(v); return;
+  }
+  var m = {};
+  frigo.forEach(function(x){
+    var r = m[x.prodotto] || (m[x.prodotto] = { ek:0, et:0, vk:0, vt:0 });
+    if (x.verso === "Vendita"){ r.vk += x.kg; r.vt += x.importo; }
+    else { r.ek += x.kg; r.et += x.importo; }
+  });
+  var voci = Object.keys(m).map(function(k){ return { cod:k, d:m[k] }; })
+                           .sort(function(x,y){ return y.d.et - x.d.et; });
+  var T = { ek:0, et:0, vk:0, vt:0, mg:0 };
+  voci.forEach(function(v){
+    var d = v.d, costo = d.ek > 0 ? d.et / d.ek : 0;
+    var margine = d.vk > 0 ? d.vt - d.vk * costo : 0;
+    T.ek += d.ek; T.et += d.et; T.vk += d.vk; T.vt += d.vt; T.mg += margine;
+    var tr = document.createElement("tr");
+    td(tr, etichetta(v.cod));
+    td(tr, fKg.format(d.ek) + " kg");
+    td(tr, fEur.format(d.et));
+    td(tr, costo > 0 ? fEur.format(costo) + "/kg" : "—");
+    td(tr, d.vk > 0 ? fKg.format(d.vk) + " kg" : "—");
+    td(tr, d.vk > 0 ? fEur.format(d.vt) : "—");
+    td(tr, d.vk > 0 ? fEur.format(d.vt / d.vk) + "/kg" : "—");
+    td(tr, d.vk > 0 ? fEur.format(margine) : "—", d.vk > 0 ? (margine >= 0 ? "var(--ok)" : "var(--bad)") : null);
+    td(tr, fKg.format(d.ek - d.vk) + " kg");
+    b.appendChild(tr);
+  });
+  var tr = document.createElement("tr"); tr.className = "tot";
+  td(tr, "Totale");
+  td(tr, fKg.format(T.ek) + " kg"); td(tr, fEur.format(T.et));
+  td(tr, T.ek > 0 ? fEur.format(T.et / T.ek) + "/kg" : "—");
+  td(tr, fKg.format(T.vk) + " kg"); td(tr, fEur.format(T.vt));
+  td(tr, T.vk > 0 ? fEur.format(T.vt / T.vk) + "/kg" : "—");
+  td(tr, fEur.format(T.mg));
+  td(tr, fKg.format(T.ek - T.vk) + " kg");
+  b.appendChild(tr);
+  testo("s-ncong",
+    "Sono le sigle che finiscono per CG. Entrato è quello che è stato messo in congelatore, "
+    + "al valore con cui è stato caricato; venduto è quello che ne è uscito davvero. "
+    + (T.vk > 0
+        ? "Finora ne sono usciti " + fKg.format(T.vk) + " kg su " + fKg.format(T.ek)
+          + ", a " + fEur.format(T.vt / T.vk) + "/kg contro un carico di " + fEur.format(T.et / T.ek) + "/kg: "
+          + fKg.format(T.ek - T.vk) + " kg sono ancora da vendere."
+        : "Finora non ne è stato venduto nulla: tutti i " + fKg.format(T.ek) + " kg sono ancora in congelatore.")
+    + " Il foglio non registra da quale tartufo fresco proviene ogni chilo congelato, quindi qui non si risale alla specie di partenza.");
 }
 
 /* Quanta merce non arriva mai al banco: quella che cala di peso e quella che
@@ -1194,17 +1291,20 @@ function caliStagione(u){
     testo("s-ncali", "Il blocco del congelato e del calo peso non è ancora collegato alla scheda pubblicata.");
     var v0 = document.createElement("tr");
     var c0 = document.createElement("td");
-    c0.colSpan = 9; c0.style.color = "var(--muted)";
+    c0.colSpan = 11; c0.style.color = "var(--muted)";
     c0.textContent = "Serve il blocco nelle colonne da X in poi della scheda pubblicata.";
     v0.appendChild(c0); b.appendChild(v0);
     return;
   }
   var tutto = pesoCali(chiuse);
   var margine = u ? u.prog_margine : 0;
+  var spCalo = perSpecie(chiuse, function(c){ return c.pk; });
+  var spCong = perSpecie(chiuse, function(c){ return Math.abs(c.gk); });
   testo("s-tcp", fKg.format(tutto.kgCalo) + " kg");
-  testo("s-tcpn", "valgono " + fEur.format(tutto.costoCalo));
+  testo("s-tcpn", elencoKg(spCalo) + " · valgono " + fEur.format(tutto.costoCalo));
   testo("s-tcg", fKg.format(tutto.kgCong) + " kg");
-  testo("s-tcgn", tutto.minorValore > 0 ? fEur.format(tutto.minorValore) + " sotto il costo del fresco" : "al costo");
+  testo("s-tcgn", elencoKg(spCong) + " · usciti a " + fEur.format(tutto.valCong)
+        + (tutto.minorValore >= 1 ? ", " + fEur.format(tutto.minorValore) + " sotto il costo del fresco" : ""));
   testo("s-ncali",
     "Chili comprati che non diventano vendite di fresco. Il costo del calo è il valore dei chili evaporati; "
     + "il minor valore è quanto il congelato è uscito sotto il costo del fresco. "
@@ -1234,6 +1334,9 @@ function caliStagione(u){
     td(tr, v.p.costoCalo > 0 ? "−" + fEur.format(v.p.costoCalo) : "—", v.p.costoCalo > 0 ? "var(--bad)" : null);
     td(tr, v.p.kgCong > 0 ? fKg.format(v.p.kgCong) + " kg" : "—");
     td(tr, v.p.kgCong > 0 ? fPct.format(v.p.kgCong / v.disp) : "—");
+    td(tr, v.p.kgCong > 0 ? fEur.format(v.p.valCong) + " · " + fEur.format(v.p.valCong / v.p.kgCong) + "/kg" : "—");
+    td(tr, v.p.kgCong > 0 ? fEur.format(v.p.valCong + v.p.minorValore) + " · "
+                            + fEur.format((v.p.valCong + v.p.minorValore) / v.p.kgCong) + "/kg" : "—");
     td(tr, v.p.minorValore >= 1 ? "−" + fEur.format(v.p.minorValore) : "—", v.p.minorValore >= 1 ? "var(--warn)" : null);
     td(tr, margine > 0 ? fPct.format(v.tot / margine) : "—");
     b.appendChild(tr);
@@ -1249,6 +1352,8 @@ function caliStagione(u){
   td(tr, "−" + fEur.format(tutto.costoCalo));
   td(tr, fKg.format(tutto.kgCong) + " kg");
   td(tr, disp > 0 ? fPct.format(tutto.kgCong / disp) : "—");
+  td(tr, fEur.format(tutto.valCong));
+  td(tr, fEur.format(tutto.valCong + tutto.minorValore));
   td(tr, "−" + fEur.format(tutto.minorValore));
   td(tr, margine > 0 ? fPct.format(somma / margine) : "—");
   b.appendChild(tr);

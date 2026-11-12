@@ -1,10 +1,11 @@
 <!doctype html>
 <!--
-  Cruscotto Pergola Tartufi — versione 1.0 — 8 novembre 2026
+  Cruscotto Pergola Tartufi — versione 1.1 — 12 novembre 2026
   Versione approvata e funzionante. Non modificare a mano.
   Legge la scheda "piatto" del foglio di stagione pubblicata in formato csv:
-  colonne A:L i totali, colonne N:V i movimenti. Se quelle colonne vengono
-  spostate o le formule in A2 e N1 sovrascritte, la pagina smette di leggere.
+  colonne A:L i totali, colonne N:V i movimenti, colonne X:AK il congelato,
+  le rimanenze e il calo peso. Se quelle colonne vengono spostate o le formule
+  in A2, N1 e X1 sovrascritte, la pagina smette di leggere.
 -->
 <html lang="it">
 <head>
@@ -171,7 +172,9 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
       <div class="tile"><span class="k">Acquistato</span><span class="v" id="w-ta">—</span><span class="n" id="w-tan"></span></div>
       <div class="tile"><span class="k">Venduto</span><span class="v" id="w-tv">—</span><span class="n" id="w-tvn"></span></div>
       <div class="tile"><span class="k">Esistenze iniziali</span><span class="v" id="w-te">—</span><span class="n" id="w-ten"></span></div>
-      <div class="tile"><span class="k">Giacenza teorica</span><span class="v" id="w-tg">—</span><span class="n" id="w-tgn"></span></div>
+      <div class="tile"><span class="k">Congelato</span><span class="v" id="w-tc">—</span><span class="n" id="w-tcn"></span></div>
+      <div class="tile"><span class="k">Calo peso</span><span class="v" id="w-tk">—</span><span class="n" id="w-tkn"></span></div>
+      <div class="tile"><span class="k">Rimanenze</span><span class="v" id="w-tg">—</span><span class="n" id="w-tgn"></span></div>
       <div class="tile"><span class="k">Costo della struttura</span><span class="v" id="w-ts">—</span><span class="n" id="w-tsn"></span></div>
     </div>
 
@@ -184,13 +187,24 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
       </div>
       <div class="card">
         <h2>Il conto della settimana</h2>
-        <p class="nota">Giacenza iniziale più acquisti meno vendite: quello che resta in cella.</p>
+        <p class="nota" id="w-nconto">—</p>
         <div class="scroll">
           <table>
-            <thead><tr><th>Tipologia</th><th>Esistenze</th><th>Acquisti</th><th>Vendite</th><th>Giacenza</th></tr></thead>
+            <thead><tr><th>Tipologia</th><th>Esistenze</th><th>Acquisti</th><th>Vendite</th><th>Congelato</th><th>Calo peso</th><th>Rimanenze</th></tr></thead>
             <tbody id="w-tab"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Congelamento e calo peso</h2>
+      <p class="nota" id="w-ncali">—</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Specie</th><th>Congelato</th><th>Prezzo di congelamento</th><th>Costo del fresco</th><th>Minor valore</th><th>Calo peso</th><th>% sul disponibile</th><th>Costo del calo</th></tr></thead>
+          <tbody id="w-cali"></tbody>
+        </table>
       </div>
     </div>
 
@@ -230,7 +244,7 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
 
     <div class="avviso" id="w-avviso">—</div>
 
-    <footer>Movimenti presi dal foglio di stagione, scheda dei movimenti. Le righe segnate come esistenze sono la giacenza avanzata dalla settimana precedente. La giacenza teorica è in chilogrammi: non è una valorizzazione di magazzino.</footer>
+    <footer>Movimenti presi dal foglio di stagione. Le righe segnate come esistenze sono la giacenza avanzata dalla settimana precedente. Le rimanenze tengono conto anche del congelato e del calo peso, che il foglio chiude ogni settimana: è per questo che non coincidono con esistenze più acquisti meno vendite. Il calo peso della settimana in corso si rileva alla chiusura, il martedì successivo.</footer>
   </section>
 
   <!-- ====================== STAGIONE ====================== -->
@@ -242,6 +256,8 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
       <div class="tile"><span class="k">Margine</span><span class="v" id="s-tm">—</span><span class="n" id="s-tmn"></span></div>
       <div class="tile"><span class="k">Margine sulle vendite</span><span class="v" id="s-tp">—</span><span class="n" id="s-tpn"></span></div>
       <div class="tile"><span class="k">Quantità venduta</span><span class="v" id="s-tk">—</span><span class="n" id="s-tkn"></span></div>
+      <div class="tile"><span class="k">Perso per calo peso</span><span class="v" id="s-tcp">—</span><span class="n" id="s-tcpn"></span></div>
+      <div class="tile"><span class="k">Congelato</span><span class="v" id="s-tcg">—</span><span class="n" id="s-tcgn"></span></div>
     </div>
 
     <div class="bar"><span class="et">Specie</span><span class="seg" id="s-filtro"></span></div>
@@ -264,6 +280,17 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
     <div class="griglia" id="s-schede"></div>
 
     <div class="card">
+      <h2>Quello che non arriva alla vendita</h2>
+      <p class="nota" id="s-ncali">—</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Specie</th><th>Disponibile</th><th>Calo peso</th><th>% di calo</th><th>Costo del calo</th><th>Congelato</th><th>% congelata</th><th>Minor valore</th><th>Peso sul margine</th></tr></thead>
+          <tbody id="s-cali"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Dettaglio settimanale</h2>
       <p class="nota" id="s-ntab">—</p>
       <div class="scroll">
@@ -274,7 +301,7 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
       </div>
     </div>
 
-    <footer>Dati dal foglio di stagione, scheda dei totali. Il margine è la differenza fra vendite e costo del venduto della merce: non comprende i costi di struttura. I valori comprendono sia la SRL sia l'azienda agricola.</footer>
+    <footer>Dati dal foglio di stagione, scheda dei totali. Il margine è la differenza fra vendite e costo del venduto della merce: non comprende i costi di struttura, né il calo peso e il congelamento, che restano caricati sul valore delle rimanenze e si scaricano sul costo del venduto delle settimane successive. I valori comprendono sia la SRL sia l'azienda agricola.</footer>
   </section>
 
   <!-- ====================== AGRICOLA ====================== -->
@@ -398,7 +425,7 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
     <footer id="b-foot">—</footer>
   </section>
 
-  <p class="versione">Cruscotto Pergola Tartufi · versione 1.0 · 8 novembre 2026</p>
+  <p class="versione">Cruscotto Pergola Tartufi · versione 1.1 · 12 novembre 2026</p>
 
 </div>
 <script>
@@ -408,9 +435,10 @@ footer{color:var(--muted);font-size:.78rem;max-width:72ch;margin-top:8px}
 /* ===================================================================
    Pagina autonoma: nessuna libreria, nessun collegamento esterno.
    L'unica cosa che va a prendere fuori sono i dati del foglio Google.
-   La scheda pubblicata contiene due blocchi affiancati:
-     colonne A..L  i totali di stagione
-     colonne N..V  i movimenti settimana per settimana
+   La scheda pubblicata contiene tre blocchi affiancati:
+     colonne A..L   i totali di stagione
+     colonne N..V   i movimenti settimana per settimana
+     colonne X..AK  esistenze, acquisti, congelato, rimanenze e calo peso
    =================================================================== */
 
 var FOGLIO = "1yntD_jjjZObjERnZdA2RFZzc4ytxSIue7NgGulLxs9g";
@@ -418,6 +446,7 @@ var SCHEDA = "piatto";
 var OGNI_MINUTI = 5;
 var INDIRIZZO_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQh7Tyb30DPqtX5TaNAqeHkfDhtAkvGj7UVdCOhgndd478m9Oo8cCM19lwOJzBMIHW6dPrf2ch2VVmJ/pub?gid=1942496255&single=true&output=csv";
 var MOV = 13;            // prima colonna del blocco movimenti
+var CAL = 23;            // prima colonna del blocco congelato e calo peso
 var ANNO = 2026;
 
 /* Valori di piano, presi dal budget commerciale approvato. Sono riferimenti
@@ -657,7 +686,7 @@ function nessunDato(box, msg){
 function massimo(a, f){ var m = 0; a.forEach(function(v){ var x = f(v); if (x > m) m = x; }); return m; }
 
 /* ---- stato ----------------------------------------------------------- */
-var RIGHE = [], MOVI = [], SCELTA = "", SETT = null, VISTA = "stagione";
+var RIGHE = [], MOVI = [], CALI = [], SCELTA = "", SETT = null, VISTA = "stagione";
 
 function insieme(){ return RIGHE.filter(function(r){ return r.ente === "Insieme"; }); }
 function soloSpecie(){ return insieme().filter(function(r){ return r.specie !== "TOT"; }); }
@@ -711,6 +740,62 @@ function movSett(){
 function perVerso(v){ return movSett().filter(function(m){ return m.verso === v; }); }
 function somma(a, c){ var s = 0; a.forEach(function(x){ s += x[c]; }); return s; }
 
+/* --- congelamento e calo peso ---------------------------------------
+   Ogni settimana il foglio chiude con questa quadratura:
+     esistenze + acquisti − vendite − congelato − calo peso = rimanenze.
+   Il congelato esce dal fresco al prezzo di congelamento, di regola molto
+   sotto il costo: la differenza non viene spesata, resta caricata su quello
+   che avanza. Il calo peso toglie chili senza togliere valore, quindi alza
+   il costo al chilo del rimanente. Nessuno dei due passa per il margine
+   della settimana in cui succede: emergono dopo, quando quella merce viene
+   venduta. Per questo la giacenza calcolata come esistenze più acquisti
+   meno vendite non coincide mai con le esistenze della settimana dopo. */
+
+function caliSett(s){
+  return CALI.filter(function(c){ return c.settimana === s && c.ente === "Insieme"; });
+}
+function caliSpecie(s, p){
+  var a = caliSett(s).filter(function(c){ return c.specie === p; });
+  return a.length ? a[0] : null;
+}
+// Finché la settimana è aperta il foglio non ha ancora rilevato il calo: tiene
+// le rimanenze a zero e scarica tutto lo sbilancio sulla riga del calo peso.
+// Sono celle di appoggio, non numeri da mostrare.
+function settimanaChiusa(s){
+  var a = caliSett(s).filter(function(c){ return c.specie === "TOT"; });
+  if (!a.length) return true;
+  return !(a[0].rk === 0 && a[0].pk > 0);
+}
+// Quota di chili che si perde per strada, misurata sulle settimane chiuse.
+function tassoCalo(p){
+  var disp = 0, perso = 0;
+  CALI.forEach(function(r){
+    if (r.ente !== "Insieme" || r.specie === "TOT") return;
+    if (!settimanaChiusa(r.settimana)) return;
+    if (p && r.specie !== p) return;
+    disp += r.ek + r.ak; perso += r.pk;
+  });
+  if (disp <= 0 || perso <= 0) return p ? tassoCalo(null) : 0;
+  var t = perso / disp;
+  return (t > 0 && t < 0.3) ? t : 0;
+}
+// Quanto valgono, in euro, i due fenomeni su un insieme di righe.
+function pesoCali(righe){
+  var r = { kgCong:0, kgCalo:0, minorValore:0, costoCalo:0, valCong:0 };
+  righe.forEach(function(x){
+    if (x.specie === "TOT") return;
+    var disp = x.ek + x.ak, val = x.et + x.at;
+    var um = disp > 0 ? val / disp : 0;
+    var ru = x.rk > 0 ? x.rt / x.rk : um;
+    r.kgCong += Math.abs(x.gk);
+    r.kgCalo += x.pk;
+    r.valCong += Math.abs(x.gt);
+    r.minorValore += Math.abs(x.gk) * Math.max(um - x.gu, 0);
+    r.costoCalo += x.pk * ru;
+  });
+  return r;
+}
+
 function spostamentiMese(){ return STRUTTURA.kmMesePersona * STRUTTURA.persone * STRUTTURA.euroKm; }
 function strutturaMese(){ return (STRUTTURA.fissi9m - STRUTTURA.spostamenti9m) / 9 + spostamentiMese(); }
 function strutturaSettimana(){ return strutturaMese() * 3 / BUD.settimaneQ4; }
@@ -750,7 +835,11 @@ function tabellaPrezzi(){
     + "serve il " + fPct.format(m.pareggio) + " di margine per andare in pareggio e il "
     + fPct.format(m.budget) + " per arrivare al risultato di piano: da lì escono i due prezzi. "
     + "Il suggerito punta al budget, ma se supera di oltre il " + fPct.format(PREZZI.sopraMax)
-    + " il massimo spuntato in stagione ripiega su un ricarico del " + fPct.format(PREZZI.ricarico) + " sul costo.");
+    + " il massimo spuntato in stagione ripiega su un ricarico del " + fPct.format(PREZZI.ricarico) + " sul costo."
+    + (CALI.length
+        ? " I prezzi partono dal costo caricato del calo peso: di ogni chilo in cella se ne perde per strada una parte, "
+          + "quindi il costo va spalmato sui chili che si riescono davvero a vendere."
+        : ""));
 
   var esi = perVerso("Esistenze").filter(function(e){ return e.kg > 0; });
   if (!esi.length){
@@ -765,10 +854,12 @@ function tabellaPrezzi(){
   esi.sort(function(x,y){ return y.importo - x.importo; });
   esi.forEach(function(e){
     var costo = e.kg ? e.importo / e.kg : 0;
-    var pareggio = daMargine(costo, m.pareggio);
-    var obiettivo = daMargine(costo, m.budget);
+    var tasso = CALI.length ? tassoCalo(e.prodotto) : 0;
+    var pieno = tasso > 0 && tasso < 0.3 ? costo / (1 - tasso) : costo;
+    var pareggio = daMargine(pieno, m.pareggio);
+    var obiettivo = daMargine(pieno, m.budget);
     var max = massimoSpuntato(e.prodotto);
-    var ripiego = costo * (1 + PREZZI.ricarico);
+    var ripiego = pieno * (1 + PREZZI.ricarico);
     var oltre = obiettivo <= 0 || (max > 0 && obiettivo > max * (1 + PREZZI.sopraMax));
     var suggerito = oltre ? ripiego : obiettivo;
     var sotto = pareggio > 0 && suggerito < pareggio;
@@ -776,7 +867,9 @@ function tabellaPrezzi(){
     td(tr, etichetta(e.prodotto));
     td(tr, fKg.format(e.kg) + " kg");
     td(tr, fEur.format(e.importo));
-    td(tr, fEur.format(costo) + "/kg");
+    td(tr, tasso > 0
+          ? fEur.format(costo) + " → " + fEur.format(pieno) + "/kg col calo del " + fPct.format(tasso)
+          : fEur.format(costo) + "/kg");
     td(tr, pareggio > 0 ? fEur.format(pareggio) + "/kg" : "—", "var(--warn)");
     td(tr, obiettivo > 0 ? fEur.format(obiettivo) + "/kg" : "—");
     td(tr, max > 0 ? fEur.format(max) + "/kg" : "—");
@@ -786,14 +879,74 @@ function tabellaPrezzi(){
   });
 }
 
+function tabellaCali(cs, chiusa){
+  var b = el("w-cali"); b.replaceChildren();
+  if (!cs.length){
+    testo("w-ncali", "Il blocco del congelato e del calo peso non è ancora collegato alla scheda pubblicata.");
+    var v0 = document.createElement("tr");
+    var c0 = document.createElement("td");
+    c0.colSpan = 8; c0.style.color = "var(--muted)";
+    c0.textContent = "Serve il blocco nelle colonne da X in poi della scheda pubblicata: una formula da incollare una volta sola.";
+    v0.appendChild(c0); b.appendChild(v0);
+    return;
+  }
+  testo("w-ncali",
+    "Il congelato esce dal fresco al prezzo di congelamento: la differenza con il costo non viene spesata, "
+    + "resta caricata su quello che avanza. Il calo peso toglie chili ma non valore, quindi alza il costo al chilo "
+    + "del rimanente. Né l'uno né l'altro passano per il margine di questa settimana."
+    + (chiusa ? "" : " La settimana è aperta: il calo peso si rileva alla chiusura."));
+
+  var righe = cs.filter(function(c){
+    return c.specie !== "TOT" && (Math.abs(c.gk) > 0 || (chiusa && c.pk > 0));
+  });
+  if (!righe.length){
+    var v1 = document.createElement("tr");
+    var c1 = document.createElement("td");
+    c1.colSpan = 8; c1.style.color = "var(--muted)";
+    c1.textContent = chiusa ? "In questa settimana non è stato congelato nulla e non c'è stato calo peso."
+                            : "Nessun congelamento registrato finora in questa settimana.";
+    v1.appendChild(c1); b.appendChild(v1);
+    return;
+  }
+  righe.sort(function(x,y){ return Math.abs(y.gk) + y.pk - Math.abs(x.gk) - x.pk; });
+  righe.forEach(function(c){
+    var disp = c.ek + c.ak, um = disp > 0 ? (c.et + c.at) / disp : 0;
+    var ru = c.rk > 0 ? c.rt / c.rk : um;
+    var cg = Math.abs(c.gk), cp = chiusa ? c.pk : 0;
+    var minore = cg * Math.max(um - c.gu, 0);
+    var tr = document.createElement("tr");
+    td(tr, etichetta(c.specie));
+    td(tr, cg > 0 ? fKg.format(cg) + " kg" : "—");
+    td(tr, cg > 0 ? fEur.format(c.gu) + "/kg" : "—");
+    td(tr, um > 0 ? fEur.format(um) + "/kg" : "—");
+    td(tr, minore >= 1 ? "−" + fEur.format(minore) : "—", minore >= 1 ? "var(--warn)" : null);
+    td(tr, cp > 0 ? fKg.format(cp) + " kg" : (chiusa ? "—" : "da rilevare"));
+    td(tr, (cp > 0 && disp > 0) ? fPct.format(cp / disp) : "—");
+    td(tr, cp > 0 ? "−" + fEur.format(cp * ru) : "—", cp > 0 ? "var(--bad)" : null);
+    b.appendChild(tr);
+  });
+  var p = pesoCali(chiusa ? cs : cs.map(function(c){
+    return {specie:c.specie, ek:c.ek, ak:c.ak, et:c.et, at:c.at, gk:c.gk, gu:c.gu, gt:c.gt, rk:c.rk, rt:c.rt, pk:0};
+  }));
+  var tr = document.createElement("tr"); tr.className = "tot";
+  td(tr, "Totale");
+  td(tr, fKg.format(p.kgCong) + " kg"); td(tr, ""); td(tr, "");
+  td(tr, p.minorValore > 0 ? "−" + fEur.format(p.minorValore) : "—");
+  td(tr, chiusa ? fKg.format(p.kgCalo) + " kg" : "da rilevare");
+  td(tr, "");
+  td(tr, p.costoCalo > 0 ? "−" + fEur.format(p.costoCalo) : "—");
+  b.appendChild(tr);
+}
+
 function disegnaSettimana(){
   var sm = settimaneMov();
   if (!sm.length){
     testo("w-intro", "I movimenti non sono ancora collegati.");
     el("w-filtro").replaceChildren();
-    ["w-ta","w-tv","w-te","w-tg"].forEach(function(i){ testo(i, "—"); });
-    ["w-tan","w-tvn","w-ten","w-tgn"].forEach(function(i){ testo(i, ""); });
+    ["w-ta","w-tv","w-te","w-tg","w-tc","w-tk"].forEach(function(i){ testo(i, "—"); });
+    ["w-tan","w-tvn","w-ten","w-tgn","w-tcn","w-tkn"].forEach(function(i){ testo(i, ""); });
     el("w-tab").replaceChildren(); el("w-forn").replaceChildren(); el("w-cli").replaceChildren();
+    el("w-cali").replaceChildren(); testo("w-ncali", ""); testo("w-nconto", "");
     el("w-prezzi").replaceChildren(); testo("w-nprezzi", "");
     testo("w-ts", "—"); testo("w-tsn", "");
     nessunDato(el("w-chart"), "Manca il blocco dei movimenti nella scheda pubblicata");
@@ -828,10 +981,30 @@ function disegnaSettimana(){
   testo("w-tvn", fKg.format(kv) + " kg in " + ven.length + (ven.length === 1 ? " riga" : " righe"));
   testo("w-te", fEur.format(ie));
   testo("w-ten", fKg.format(ke) + " kg avanzati dalla settimana prima");
-  testo("w-tg", fKg.format(ke + ka - kv) + " kg");
-  testo("w-tgn", "esistenze più acquisti meno vendite");
   testo("w-ts", fEur.format(strutturaSettimana()));
   testo("w-tsn", "a settimana in questo trimestre, spostamenti compresi");
+
+  var cs = caliSett(SETT), chiusa = settimanaChiusa(SETT);
+  var ct = caliSpecie(SETT, "TOT"), pc = pesoCali(cs);
+  var kCong = ct ? Math.abs(ct.gk) : pc.kgCong;
+  var kCalo = chiusa ? (ct ? ct.pk : pc.kgCalo) : 0;
+  var kRim  = (chiusa && ct) ? ct.rk : (ke + ka - kv - kCong);
+
+  if (!cs.length){
+    testo("w-tc", "—"); testo("w-tcn", "blocco non collegato");
+    testo("w-tk", "—"); testo("w-tkn", "blocco non collegato");
+    testo("w-tg", fKg.format(ke + ka - kv) + " kg");
+    testo("w-tgn", "esistenze più acquisti meno vendite");
+  } else {
+    testo("w-tc", fKg.format(kCong) + " kg");
+    testo("w-tcn", kCong > 0 ? fEur.format(pc.valCong) + " al prezzo di congelamento" : "niente congelato");
+    testo("w-tk", chiusa ? fKg.format(kCalo) + " kg" : "—");
+    testo("w-tkn", chiusa
+      ? (kCalo > 0 ? "costano " + fEur.format(pc.costoCalo) : "nessun calo registrato")
+      : "si determina a settimana chiusa");
+    testo("w-tg", fKg.format(kRim) + " kg");
+    testo("w-tgn", chiusa ? "quello che resta davvero in cella" : "al netto del congelato, calo ancora da rilevare");
+  }
 
   // tabella per tipologia
   var tipi = [];
@@ -840,20 +1013,35 @@ function disegnaSettimana(){
   var b = el("w-tab"); b.replaceChildren();
   function q(v, p){ var a = movSett().filter(function(m){ return m.verso === v && m.prodotto === p; });
                     return {kg: somma(a,"kg"), eur: somma(a,"importo")}; }
+  testo("w-nconto", cs.length
+    ? ("Esistenze più acquisti, meno vendite, congelato e calo peso: quello che resta in cella."
+       + (chiusa ? "" : " La settimana è ancora aperta, quindi il calo peso non è stato rilevato."))
+    : "Esistenze più acquisti meno vendite. Il congelato e il calo peso non sono collegati: le rimanenze qui sotto sono quindi teoriche.");
   tipi.forEach(function(p){
     var e = q("Esistenze",p), a = q("Acquisto",p), v = q("Vendita",p);
+    var c = caliSpecie(SETT, p);
+    var cg = c ? Math.abs(c.gk) : 0;
+    var cp = (c && chiusa) ? c.pk : 0;
+    var rim = (c && chiusa) ? c.rk : (e.kg + a.kg - v.kg - cg);
     var tr = document.createElement("tr");
     td(tr, etichetta(p));
     td(tr, fKg.format(e.kg) + " kg");
     td(tr, fKg.format(a.kg) + " kg");
     td(tr, fKg.format(v.kg) + " kg");
-    td(tr, fKg.format(e.kg + a.kg - v.kg) + " kg");
+    td(tr, cg > 0 ? "−" + fKg.format(cg) + " kg" : "—", cg > 0 ? "var(--warn)" : null);
+    td(tr, c ? (chiusa ? (cp > 0 ? "−" + fKg.format(cp) + " kg" : "—") : "da rilevare") : "—",
+           cp > 0 ? "var(--bad)" : null);
+    td(tr, fKg.format(rim) + " kg");
     b.appendChild(tr);
   });
   var tr = document.createElement("tr"); tr.className = "tot";
   td(tr, "Totale"); td(tr, fKg.format(ke) + " kg"); td(tr, fKg.format(ka) + " kg");
-  td(tr, fKg.format(kv) + " kg"); td(tr, fKg.format(ke + ka - kv) + " kg");
+  td(tr, fKg.format(kv) + " kg");
+  td(tr, kCong > 0 ? "−" + fKg.format(kCong) + " kg" : "—");
+  td(tr, cs.length ? (chiusa ? (kCalo > 0 ? "−" + fKg.format(kCalo) + " kg" : "—") : "da rilevare") : "—");
+  td(tr, fKg.format(kRim) + " kg");
   b.appendChild(tr);
+  tabellaCali(cs, chiusa);
 
   // controparti
   // Una riga per ogni accoppiata controparte e tipologia di tartufo.
@@ -985,10 +1173,85 @@ function disegnaStagione(){
     f.appendChild(b);
   });
 
+  caliStagione(u);
   schedeSpecie();
   tabellaStagione();
   graficoVendite();
   graficoMargine();
+}
+
+/* Quanta merce non arriva mai al banco: quella che cala di peso e quella che
+   finisce congelata sotto costo. Si contano solo le settimane chiuse, perché
+   in quella aperta il calo non è ancora stato rilevato. */
+function caliStagione(u){
+  var b = el("s-cali"); b.replaceChildren();
+  var chiuse = CALI.filter(function(c){
+    return c.ente === "Insieme" && c.specie !== "TOT" && settimanaChiusa(c.settimana);
+  });
+  if (!chiuse.length){
+    testo("s-tcp", "—"); testo("s-tcpn", CALI.length ? "nessuna settimana chiusa" : "blocco non collegato");
+    testo("s-tcg", "—"); testo("s-tcgn", CALI.length ? "" : "blocco non collegato");
+    testo("s-ncali", "Il blocco del congelato e del calo peso non è ancora collegato alla scheda pubblicata.");
+    var v0 = document.createElement("tr");
+    var c0 = document.createElement("td");
+    c0.colSpan = 9; c0.style.color = "var(--muted)";
+    c0.textContent = "Serve il blocco nelle colonne da X in poi della scheda pubblicata.";
+    v0.appendChild(c0); b.appendChild(v0);
+    return;
+  }
+  var tutto = pesoCali(chiuse);
+  var margine = u ? u.prog_margine : 0;
+  testo("s-tcp", fKg.format(tutto.kgCalo) + " kg");
+  testo("s-tcpn", "valgono " + fEur.format(tutto.costoCalo));
+  testo("s-tcg", fKg.format(tutto.kgCong) + " kg");
+  testo("s-tcgn", tutto.minorValore > 0 ? fEur.format(tutto.minorValore) + " sotto il costo del fresco" : "al costo");
+  testo("s-ncali",
+    "Chili comprati che non diventano vendite di fresco. Il costo del calo è il valore dei chili evaporati; "
+    + "il minor valore è quanto il congelato è uscito sotto il costo del fresco. "
+    + "Sono soldi già spesi che non compaiono nel margine della settimana in cui succedono: "
+    + "si scaricano dopo, sul costo del venduto, perché restano caricati sulle rimanenze. "
+    + "Settimane chiuse soltanto. Finora valgono "
+    + fEur.format(tutto.costoCalo + tutto.minorValore)
+    + (margine > 0 ? ", pari al " + fPct.format((tutto.costoCalo + tutto.minorValore) / margine)
+                     + " del margine di stagione." : "."));
+
+  var codici = [];
+  chiuse.forEach(function(c){ if (codici.indexOf(c.specie) < 0) codici.push(c.specie); });
+  var voci = codici.map(function(cod){
+    var f = chiuse.filter(function(c){ return c.specie === cod; });
+    var p = pesoCali(f), disp = 0;
+    f.forEach(function(c){ disp += c.ek + c.ak; });
+    return { cod:cod, disp:disp, p:p, tot:p.costoCalo + p.minorValore };
+  }).filter(function(v){ return v.disp > 0; });
+  voci.sort(function(x,y){ return y.tot - x.tot; });
+
+  voci.forEach(function(v){
+    var tr = document.createElement("tr");
+    td(tr, etichetta(v.cod));
+    td(tr, fKg.format(v.disp) + " kg");
+    td(tr, v.p.kgCalo > 0 ? fKg.format(v.p.kgCalo) + " kg" : "—");
+    td(tr, v.p.kgCalo > 0 ? fPct.format(v.p.kgCalo / v.disp) : "—");
+    td(tr, v.p.costoCalo > 0 ? "−" + fEur.format(v.p.costoCalo) : "—", v.p.costoCalo > 0 ? "var(--bad)" : null);
+    td(tr, v.p.kgCong > 0 ? fKg.format(v.p.kgCong) + " kg" : "—");
+    td(tr, v.p.kgCong > 0 ? fPct.format(v.p.kgCong / v.disp) : "—");
+    td(tr, v.p.minorValore >= 1 ? "−" + fEur.format(v.p.minorValore) : "—", v.p.minorValore >= 1 ? "var(--warn)" : null);
+    td(tr, margine > 0 ? fPct.format(v.tot / margine) : "—");
+    b.appendChild(tr);
+  });
+  var disp = 0;
+  chiuse.forEach(function(c){ disp += c.ek + c.ak; });
+  var somma = tutto.costoCalo + tutto.minorValore;
+  var tr = document.createElement("tr"); tr.className = "tot";
+  td(tr, "Totale");
+  td(tr, fKg.format(disp) + " kg");
+  td(tr, fKg.format(tutto.kgCalo) + " kg");
+  td(tr, disp > 0 ? fPct.format(tutto.kgCalo / disp) : "—");
+  td(tr, "−" + fEur.format(tutto.costoCalo));
+  td(tr, fKg.format(tutto.kgCong) + " kg");
+  td(tr, disp > 0 ? fPct.format(tutto.kgCong / disp) : "—");
+  td(tr, "−" + fEur.format(tutto.minorValore));
+  td(tr, margine > 0 ? fPct.format(somma / margine) : "—");
+  b.appendChild(tr);
 }
 
 function schedeSpecie(){
@@ -1623,7 +1886,7 @@ function carica(primo){
       var m = leggiCsv(txt);
       if (!m.length) throw new Error("la scheda pubblicata sembra vuota");
 
-      var tot = [], mov = [];
+      var tot = [], mov = [], cali = [];
       m.forEach(function(c){
         var specie = cel(c,1), ente = cel(c,3);
         if (specie && ente && specie !== "specie" && ente !== "ente"){
@@ -1639,6 +1902,15 @@ function carica(primo){
                      kg:num(c[MOV+5]), prezzo:num(c[MOV+6]),
                      importo:num(c[MOV+7]), marca:num(c[MOV+8]) });
         }
+        var cspe = cel(c,CAL+1), cent = cel(c,CAL+2);
+        if (cspe && cent && cspe !== "specie" && cent !== "ente"){
+          cali.push({ settimana:num(c[CAL]), specie:cspe, ente:cent,
+                      ek:num(c[CAL+3]),  et:num(c[CAL+4]),
+                      ak:num(c[CAL+5]),  at:num(c[CAL+6]),
+                      gk:num(c[CAL+7]),  gu:num(c[CAL+8]), gt:num(c[CAL+9]),
+                      rk:num(c[CAL+10]), rt:num(c[CAL+11]),
+                      pk:num(c[CAL+12]), pp:num(c[CAL+13]) });
+        }
       });
       if (!tot.length) throw new Error("ho letto " + m.length + " righe ma nessuna è utilizzabile. Di solito vuol dire che è stata pubblicata una scheda diversa da « " + SCHEDA + " »: nella finestra «Pubblica sul web» il primo menu deve indicare quella scheda, non «Intero documento»");
 
@@ -1646,7 +1918,7 @@ function carica(primo){
       tot.forEach(function(r){
         if (r.nome && r.nome !== r.specie) IMPARATI[r.specie] = r.nome;
       });
-      RIGHE = tot; MOVI = mov;
+      RIGHE = tot; MOVI = mov; CALI = cali;
       el("errore").hidden = true;
       segnale("", "Aggiornato alle " + fOra.format(new Date()));
       disegna();
